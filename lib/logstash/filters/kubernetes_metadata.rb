@@ -6,8 +6,16 @@ require "rest-client"
 require "uri"
 require "logstash/json"
 
-# Process the metadata include in the file names of kubernetes log files
-# and inject that data into the log event.
+# Kubernetes collects logs in files on each of its minion hosts. The filenames for
+# these log files are structured to contain various information including the pod
+# name, container id, namespace, etc...
+#
+# This plugin parses the information from these filenames, uses the information to
+# query the kubernetes API for more information such as labels, and log format, and
+# caches this information for fast subsequent lookups for matching filename parameters.
+#
+# The data collected is then added to the logstash event under the target field
+# specified and returned for further processing or output.
 #
 # === Configuration
 #
