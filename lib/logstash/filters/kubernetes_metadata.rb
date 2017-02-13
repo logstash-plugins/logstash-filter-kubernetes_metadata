@@ -24,25 +24,6 @@ require "logstash/json"
 # }
 # -----------------------------------------------------------------
 #
-# ==== Parameters
-#
-# [source, ruby]
-# -----------------------------------------------------------------
-# api => "api.mykube.io" #  Your Kubernetes API server URL
-# auth => { # Authentication for your API in the form of either basic or bearer auth
-#   basic => {
-#     user => "mykubeusername"
-#     pass => "superwonderfulsecurepassword"
-#   }
-#
-#   # ...or...
-#
-#   bearer  => {
-#     key => "mybearerkeystring"
-#   }
-# }
-# -----------------------------------------------------------------
-#
 # === Example Input/Output
 #
 # Given a log file: `/logs/kube-logs/ssl-manager-535881469-x6hmm_storj-prod_ssl-manager-c817d2905d339677288ff73375856a066d4b4d8d45482e1f2e234428d217eb19.log`
@@ -99,20 +80,18 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
 
   # Auth for hitting the Kubernetes API. This can be either basic auth or
   # Bearer auth. It should be formated like the following
-  # [source,ruby]
+  # [source, ruby]
   # -----------------------------------------------------------------
-  # auth => {
+  # auth => { # Authentication for your API in the form of either basic or bearer auth
   #   basic => {
-  #     user => "admin"
-  #     pass => "mysuperawesomepassword"
+  #     user => "mykubeusername"
+  #     pass => "superwonderfulsecurepassword"
   #   }
-  # }
   #
-  # or
+  #   # ...or...
   #
-  # auth => {
-  #   bearer => {
-  #     key => "bearerkeygoeshere"
+  #   bearer  => {
+  #     key => "mybearerkeystring"
   #   }
   # }
   # -----------------------------------------------------------------
