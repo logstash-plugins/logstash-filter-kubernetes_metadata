@@ -9,6 +9,81 @@ require "logstash/json"
 # Process the metadata include in the file names of kubernetes log files
 # and inject that data into the log event.
 #
+# === Configuration
+#
+# The following is a basic configuration. Assuming your Kubernetes cluster does
+# not require basic auth and it is running locally at http://127.0.0.1:8001, there
+# are no required configuration options.
+#
+# Most users will at least want to specify an API server which would be done like so...
+#
+# [source, ruby]
+# -----------------------------------------------------------------
+# kubernetes_metadata {
+#   api => "https://your.kube.api.server"
+# }
+# -----------------------------------------------------------------
+#
+# ==== Parameters
+#
+# [source, ruby]
+# -----------------------------------------------------------------
+# api => "api.mykube.io" #  Your Kubernetes API server URL
+# auth => { # Authentication for your API in the form of either basic or bearer auth
+#   basic => {
+#     user => "mykubeusername"
+#     pass => "superwonderfulsecurepassword"
+#   }
+#
+#   # ...or...
+#
+#   bearer  => {
+#     key => "mybearerkeystring"
+#   }
+# }
+# -----------------------------------------------------------------
+#
+# === Example Input/Output
+#
+# Given a log file: `/logs/kube-logs/ssl-manager-535881469-x6hmm_storj-prod_ssl-manager-c817d2905d339677288ff73375856a066d4b4d8d45482e1f2e234428d217eb19.log`
+#
+# and the contents:
+# [source, json]
+# -----------------------------------------------------------------
+# {"log":"10.244.1.1 - - [25/Jan/2017:14:51:38 +0000] \"GET / HTTP/1.1\" 200 0 \"-\" \"GoogleHC/1.0\" \"-\"\n","stream":"stdout","time":"2017-01-25T14:51:38.65719468Z"}
+# -----------------------------------------------------------------
+#
+# You would end up with an output of...
+#
+# [source, ruby]
+# -----------------------------------------------------------------
+# {
+#   "path" => "/logs/kube-logs/ssl-manager-535881469-x6hmm_storj-prod_ssl-manager-c817d2905d339677288ff73375856a066d4b4d8d45482e1f2e234428d217eb19.log",
+#   "kubernetes" => {
+#     "log_format_stdout" => "default",
+#     "pod" => "ssl-manager-535881469-x6hmm",
+#     "container_name" => "ssl-manager",
+#     "log_format_stderr" => "default",
+#     "namespace" => "storj-prod",
+#     "replication_controller" => "ssl-manager-535881469",
+#     "annotations" => {
+#       "kubernetes_io-created-by" => "{\"kind\":\"SerializedReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"ReplicaSet\",\"namespace\":\"storj-prod\",\"name\":\"ssl-manager-535881469\",\"uid\":\"aca823ae-e271-11e6-99b2-42010a800002\",\"apiVersion\":\"extensions\",\"resourceVersion\":\"19491631\"}}\n"
+#     },
+#     "container_id" => "c817d2905d339677288ff73375856a066d4b4d8d45482e1f2e234428d217eb19",
+#     "labels" => {
+#       "app" => "ssl-manager",
+#       "pod-template-hash" => "535881469",
+#       "version" => "latest"
+#     }
+#   },
+#   "@timestamp" => 2017-02-13T02:33:11.702Z,
+#   "@version" => "1",
+#   "host" => "floptop.local",
+#   "message" => "{\"log\":\"10.244.1.1 - - [25/Jan/2017:14:51:38 +0000] \\\"GET / HTTP/1.1\\\" 200 0 \\\"-\\\" \\\"GoogleHC/1.0\\\" \\\"-\\\"\\n\",\"stream\":\"stdout\",\"time\":\"2017-01-25T14:51:38.65719468Z\"}",
+#   "tags" => []
+# }
+# -----------------------------------------------------------------
+#
 
 class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
 
@@ -24,6 +99,8 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
 
   # Auth for hitting the Kubernetes API. This can be either basic auth or
   # Bearer auth. It should be formated like the following
+  # [source,ruby]
+  # -----------------------------------------------------------------
   # auth => {
   #   basic => {
   #     user => "admin"
@@ -38,12 +115,13 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
   #     key => "bearerkeygoeshere"
   #   }
   # }
+  # -----------------------------------------------------------------
   config :auth, :validate => :hash, :default => {}
 
   # Kubernetes API URL
   config :api, :validate => :string, :default => "http://127.0.0.1:8001"
 
-  # default log format
+  # Default log format
   config :default_log_format, :validate => :string, :default => "default"
 
   public

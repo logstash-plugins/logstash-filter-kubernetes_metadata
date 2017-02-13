@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name          = 'logstash-filter-kubernetes_metadata'
   s.version       = '1.0.2'
-  s.licenses      = ['AGPL-3.0']
+  s.licenses      = ['Apache License (2.0)']
   s.summary       = 'Parses kubernetes host and pod metadata from log filename'
   s.homepage      = 'https://github.com/phutchins/logstash-filter-kubernetes_metadata'
   s.authors       = ['Philip Hutchins']
@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.metadata = { "logstash_plugin" => "true", "logstash_group" => "filter" }
 
   # Gem dependencies
-  s.add_runtime_dependency 'logstash-core-plugin-api', '~> 2.0'
+  s.add_runtime_dependency 'logstash-core-plugin-api', '>= 1.60', '<= 2.99'
   s.add_runtime_dependency 'rest-client', '~> 1.8', '>= 1.8.0'
   s.add_runtime_dependency 'lru_redux', '~> 1.1', '>= 1.1.0'
   s.add_development_dependency 'logstash-devutils'
