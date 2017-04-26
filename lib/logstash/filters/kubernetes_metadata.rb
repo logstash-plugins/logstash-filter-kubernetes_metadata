@@ -109,6 +109,18 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
   config :api, :validate => :string, :default => "http://127.0.0.1:8001"
 
   # Default log format
+  # This allows you to set a default log format or type for kubernetes logs if not set in the
+  # kubernetes metadata annotations.
+  # Field kesy in the annotations can be of one following formats:
+  #   - log-format-[stdout|stderr]-[container_name]
+  #   - log-format-[container_name]
+  #   - log-format-[stdout|stderr]
+  #   - log-format
+  # The format values will be set in the following fields after parsing:
+  #   - metadata['log_format_stderr']
+  #   - metadata['log_format_stdout']
+  # This is completely up to the user to supply and use in their logstash config and will not
+  # be used anywhere else
   config :default_log_format, :validate => :string, :default => "default"
 
   public
