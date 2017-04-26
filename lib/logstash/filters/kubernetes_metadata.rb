@@ -87,26 +87,22 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
   config :target, :validate => :string, :default => "kubernetes"
 
   # Auth for hitting the Kubernetes API. This can be either basic auth or
-  # Bearer auth. It should be formated like the following
-  # [source, ruby]
-  # -----------------------------------------------------------------
-  # auth => { # Authentication for your API in the form of either basic or bearer auth
-  #   basic => {
-  #     user => "mykubeusername"
-  #     pass => "superwonderfulsecurepassword"
-  #   }
+  # Bearer auth. If you specify both, it will default to basic.
   #
-  #   # ...or...
-  #
-  #   bearer  => {
-  #     key => "mybearerkeystring"
-  #   }
-  # }
-  # -----------------------------------------------------------------
-  config :auth, :validate => :hash, :default => {}
+  # Basic Auth Username
+  config :auth_basic_user, :validate => :string
+
+  # Basic Auth Password
+  config :auth_basic_pass, :validate => :string
+
+  # Bearer Auth Key
+  config :auth_bearer_key, :validate => :string
 
   # Kubernetes API URL
   config :api, :validate => :string, :default => "http://127.0.0.1:8001"
+
+  # Verify Kubernetes API SSL
+  config :verify_api_ssl, :validate => :boolean, :default => true
 
   # Default log format
   # This allows you to set a default log format or type for kubernetes logs if not set in the
@@ -135,7 +131,6 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
 
   public
   def filter(event)
-    @logger.debug("event is: #{event}")
     path = event.get(@source)
 
     # Ensure that the path parameter has been defined so that we can find the required metadata
@@ -205,10 +200,10 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
 
       metadata['log_format_stderr'] = format['stderr']
       metadata['log_format_stdout'] = format['stdout']
-      @logger.debug("kubernetes metadata => #{metadata}")
+      @logger.debug("kubernetes metadata", metadata: metadata)
 
     rescue => e
-      @logger.warn("Error setting log format: #{e}")
+      @logger.warn("Error setting log format. Please check log-format annotation.", error => e.to_s)
     end
   end
 
@@ -227,7 +222,7 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
     return kubernetes
   end
 
-  def sanatize_keys(data)
+  def sanitize_keys(data)
     return {} unless data
 
     parsed_data = {}
@@ -248,26 +243,22 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
       url = [ @api, 'api/v1/namespaces', namespace, 'pods', pod ].join("/")
 
       rest_opts = {
-        verify_ssl: false
+        verify_ssl: @verify_api_ssl
       }
 
-      if @auth
-        if @auth['basic']
-          @logger.debug("Found basic auth for Kubernetes API")
+      if @auth_basic_user && @auth_basic_pass
+        @logger.debug("Found basic auth for Kubernetes API")
 
-          basic_user = @auth['basic']['user']
-          basic_pass = @auth['basic']['pass']
+        basic_user = @auth_basic_user
+        basic_pass = @auth_basic_pass
 
-          rest_opts.merge!( user: basic_user, password: basic_pass )
-        end
+        rest_opts.merge!( user: basic_user, password: basic_pass )
+      elsif @auth_bearer_key
+        @logger.debug("Found Bearer  auth for Kubernetes API")
 
-        if @auth['bearer']
-          @logger.debug("Found Bearer  auth for Kubernetes API")
+        bearer_key = @auth_bearer_key
 
-          bearer_key = @auth['bearer']['key']
-
-          rest_opts.merge!( Authorization: "Bearer #{bearer_key}" )
-        end
+        rest_opts.merge!( Authorization: "Bearer #{bearer_key}" )
       end
 
       @logger.debug("rest_opts: #{rest_opts}")
@@ -275,26 +266,25 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
       begin
         response = RestClient::Resource.new(url, rest_opts).get
       rescue RestClient::ResourceNotFound
-        @logger.warn("Kubernetes returned an error while querying the API")
-        @logger.warn("url: #{url}, rest_opts: #{rest_opts}")
+        @logger.warn("Kubernetes returned an error while querying the API", url: url)
       rescue Exception => e
-        @logger.warn("Error while querying the API: #{e.to_s}")
+        @logger.warn("Error while querying the API", :error => e.to_s)
       end
 
       if response && response.code != 200
-        @logger.warn("Non 200 response code returned: #{response.code}")
+        @logger.warn("Non 200 response code returned", code: response.code)
       end
 
-      @logger.debug("response was: #{response}")
+      @logger.debug("Got response from Kubernetes API", response: response)
 
       data = LogStash::Json.load(response.body)
 
       {
-        'annotations' => sanatize_keys(data['metadata']['annotations']),
-        'labels' => sanatize_keys(data['metadata']['labels'])
+        'annotations' => sanitize_keys(data['metadata']['annotations']),
+        'labels' => sanitize_keys(data['metadata']['labels'])
       }
     rescue => e
-      @logger.warn("Unknown error while getting Kubernetes metadata: #{e}")
+      @logger.warn("Unknown error while getting Kubernetes metadata", :error => e.to_s)
     end
   end
 end # class LogStash::Filters::KubernetesMetadata
