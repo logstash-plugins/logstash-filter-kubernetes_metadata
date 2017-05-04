@@ -198,7 +198,7 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
           "log-format"
         ].each do |name_format|
           if log_format = annotations[name_format]
-            format[name_format] = log_format
+            format[stream] = log_format
             break
           end
         end
