@@ -209,6 +209,7 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
       @logger.debug("kubernetes metadata", metadata: metadata)
 
     rescue => e
+      event.tag("_kubelogformatparsefailure")
       @logger.warn("Error setting log format. Please check log-format annotation.", error => e.to_s)
     end
   end
