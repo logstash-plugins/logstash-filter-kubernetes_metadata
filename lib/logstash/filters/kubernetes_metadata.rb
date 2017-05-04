@@ -86,6 +86,11 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
   # The target field name to write event kubernetes metadata.
   config :target, :validate => :string, :default => "kubernetes"
 
+  # Kubernetes annotations to include in the output
+  # To parse all annotations, add a single string value to the array containing a *
+  # i.e. ['*']
+  config :annotation_whitelist, :validate => :array, :default => []
+
   # Auth for hitting the Kubernetes API. This can be either basic auth or
   # Bearer auth. If you specify both, it will default to basic if both basic
   # and bearer are defined.
@@ -164,6 +169,10 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
       if data = get_kubernetes(namespace, pod)
         metadata = file_metadata.merge(data)
         set_log_formats(metadata)
+
+        # Filter annotations based on whitelist
+        metadata['annotations'] = filter_annotations(metadata['annotations'])
+
         lookup_cache[path] = metadata
       end
       @logger.debug("metadata within lookup_cache[path]: #{metadata}")
@@ -240,6 +249,31 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
     end
 
     return parsed_data
+  end
+
+  # Filter annotations received from Kubernetes based on the whitelist
+  def filter_annotations(annotations)
+    # If a whiltelist has been specified
+    if @annotation_whitelist.length > 0
+      # If the whitelist contains a single element which is an asterisk, return all annotations
+      if @annotation_whitelist.length == 1 && @annotation_whitelist[0] == '*'
+        return annotations
+      end
+
+      filtered_annotations = {}
+
+      # Otherwise, check each key in the whitelist and pull out its data if it exists
+      @annotation_whitelist.each do |key|
+        if annotations.include?(key)
+          filtered_annotations[key] = annotations[key]
+        end
+      end
+
+      return filtered_annotations
+    else
+      # If the whitelist is empty, return an empty hash
+      return {}
+    end
   end
 
   def get_kubernetes(namespace, pod)
