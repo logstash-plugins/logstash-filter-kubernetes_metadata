@@ -116,6 +116,20 @@ class TestApp < Sinatra::Base
       }
     )
   end
+
+  get '/api/v1/namespaces/default/pods/kube-testannotationwhitelist-abcde' do
+     LogStash::Json.dump(
+      metadata: {
+        labels: {
+          app: "myappname"
+        },
+        annotations: {
+          'annotation-one' => 'super awesome data',
+          'annotation-two' => 'even more super awesome data'
+        }
+      }
+    )
+  end
 end
 
 RSpec.configure do |config|
@@ -149,6 +163,7 @@ describe LogStash::Filters::KubernetesMetadata do
         kubernetes_metadata {
           source => "source"
           api => "http://127.0.0.1:#{PORT}"
+          annotation_whitelist => ['log-format']
         }
       }
     CONFIG
@@ -173,6 +188,7 @@ describe LogStash::Filters::KubernetesMetadata do
       filter {
         kubernetes_metadata {
             api => "http://127.0.0.1:#{PORT}"
+            annotation_whitelist => ['log-format']
         }
       }
     CONFIG
@@ -193,11 +209,92 @@ describe LogStash::Filters::KubernetesMetadata do
 
   end
 
+  describe "Only pull select annotations when specified in whitelist configuration" do
+    let(:config) do <<-CONFIG
+      filter {
+        kubernetes_metadata {
+            api => "http://127.0.0.1:#{PORT}"
+            annotation_whitelist => ['annotation-one']
+        }
+      }
+    CONFIG
+    end
+
+    sample("path" => "/var/log/containers/kube-testannotationwhitelist-abcde_default_myappname-47d3a3bfb112dbd2fd6e255e1e3d9eb91a10b62342e620e4917e2f5e24398507.log") do
+      kubernetes = subject.get('kubernetes')
+
+      expect(kubernetes['pod']).to eq('kube-testannotationwhitelist-abcde')
+      expect(kubernetes['namespace']).to eq('default')
+      expect(kubernetes['container_name']).to eq('myappname')
+      expect(kubernetes['replication_controller']).to eq('kube-testannotationwhitelist')
+      expect(kubernetes['annotations']['annotation-one']).to eq('super awesome data')
+      expect(kubernetes['annotations']['annotation-two']).to be_nil
+      expect(kubernetes['log_format_stdout']).to eq('default')
+      expect(kubernetes['log_format_stderr']).to eq('default')
+      expect(kubernetes['labels']['app']).to eq('myappname')
+    end
+
+  end
+
+  describe "Pull all annotations when whitelist contains only an asterisk" do
+    let(:config) do <<-CONFIG
+      filter {
+        kubernetes_metadata {
+            api => "http://127.0.0.1:#{PORT}"
+            annotation_whitelist => ['*']
+        }
+      }
+    CONFIG
+    end
+
+    sample("path" => "/var/log/containers/kube-testannotationwhitelist-abcde_default_myappname-47d3a3bfb112dbd2fd6e255e1e3d9eb91a10b62342e620e4917e2f5e24398507.log") do
+      kubernetes = subject.get('kubernetes')
+
+      expect(kubernetes['pod']).to eq('kube-testannotationwhitelist-abcde')
+      expect(kubernetes['namespace']).to eq('default')
+      expect(kubernetes['container_name']).to eq('myappname')
+      expect(kubernetes['replication_controller']).to eq('kube-testannotationwhitelist')
+      expect(kubernetes['annotations']['annotation-one']).to eq('super awesome data')
+      expect(kubernetes['annotations']['annotation-two']).to eq('even more super awesome data')
+      expect(kubernetes['log_format_stdout']).to eq('default')
+      expect(kubernetes['log_format_stderr']).to eq('default')
+      expect(kubernetes['labels']['app']).to eq('myappname')
+    end
+
+  end
+
+  describe "Pull no annotations when whitelist is empty" do
+    let(:config) do <<-CONFIG
+      filter {
+        kubernetes_metadata {
+            api => "http://127.0.0.1:#{PORT}"
+            annotation_whitelist => []
+        }
+      }
+    CONFIG
+    end
+
+    sample("path" => "/var/log/containers/kube-testannotationwhitelist-abcde_default_myappname-47d3a3bfb112dbd2fd6e255e1e3d9eb91a10b62342e620e4917e2f5e24398507.log") do
+      kubernetes = subject.get('kubernetes')
+
+      expect(kubernetes['pod']).to eq('kube-testannotationwhitelist-abcde')
+      expect(kubernetes['namespace']).to eq('default')
+      expect(kubernetes['container_name']).to eq('myappname')
+      expect(kubernetes['replication_controller']).to eq('kube-testannotationwhitelist')
+      expect(kubernetes['annotations']).to eq({})
+      expect(kubernetes['log_format_stdout']).to eq('default')
+      expect(kubernetes['log_format_stderr']).to eq('default')
+      expect(kubernetes['labels']['app']).to eq('myappname')
+    end
+
+  end
+
   describe "Get pod metadata with container name via log-format-stdout-container and log-format-stderr-container" do
     let(:config) do <<-CONFIG
       filter {
         kubernetes_metadata {
             api => "http://127.0.0.1:#{PORT}"
+            annotation_whitelist => ['log-format-stdout-myappname', 'log-format-stderr-myappname']
         }
       }
     CONFIG
@@ -223,6 +320,7 @@ describe LogStash::Filters::KubernetesMetadata do
       filter {
         kubernetes_metadata {
             api => "http://127.0.0.1:#{PORT}"
+            annotation_whitelist => ['log-format-stdout', 'log-format-stderr']
         }
       }
     CONFIG
@@ -296,6 +394,7 @@ describe LogStash::Filters::KubernetesMetadata do
       filter {
         kubernetes_metadata {
             api => "http://127.0.0.1:#{PORT}"
+            annotation_whitelist => ['kubernetes.io/created-by', 'kubernetes_io-created-by_']
         }
       }
     CONFIG
