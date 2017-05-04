@@ -87,7 +87,8 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
   config :target, :validate => :string, :default => "kubernetes"
 
   # Auth for hitting the Kubernetes API. This can be either basic auth or
-  # Bearer auth. If you specify both, it will default to basic.
+  # Bearer auth. If you specify both, it will default to basic if both basic
+  # and bearer are defined.
   #
   # Basic Auth Username
   config :auth_basic_user, :validate => :string
@@ -247,14 +248,18 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
       }
 
       if @auth_basic_user && @auth_basic_pass
-        @logger.debug("Found basic auth for Kubernetes API")
+        if @auth_bearer_key
+          @logger.warn("Found multiple types of auth in configuration. Defaulting to basic auth.")
+        else
+          @logger.debug("Found basic auth for Kubernetes API")
+        end
 
         basic_user = @auth_basic_user
         basic_pass = @auth_basic_pass
 
         rest_opts.merge!( user: basic_user, password: basic_pass )
       elsif @auth_bearer_key
-        @logger.debug("Found Bearer  auth for Kubernetes API")
+        @logger.debug("Found Bearer auth for Kubernetes API")
 
         bearer_key = @auth_bearer_key
 
