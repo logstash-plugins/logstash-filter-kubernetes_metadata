@@ -185,15 +185,20 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
         'stderr' => @default_log_format,
         'stdout' => @default_log_format
       }
-      a = metadata['annotations']
-      n = metadata['container_name']
+      annotations = metadata['annotations']
+      container_name = metadata['container_name']
 
       # check for log-format-<stream>-<name>, log-format-<name>, log-format-<stream>, log-format
       # in annotations
-      %w{ stderr stdout }.each do |t|
-        [ "log-format-#{t}-#{n}", "log-format-#{n}", "log-format-#{t}", "log-format" ].each do |k|
-          if v = a[k]
-            format[t] = v
+      %w{ stderr stdout }.each do |stream|
+        [
+          "log-format-#{stream}-#{container_name}",
+          "log-format-#{container_name}",
+          "log-format-#{stream}",
+          "log-format"
+        ].each do |name_format|
+          if log_format = annotations[name_format]
+            format[name_format] = log_format
             break
           end
         end
