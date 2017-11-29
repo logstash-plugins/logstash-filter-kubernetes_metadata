@@ -303,7 +303,7 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
 
         bearer_key = @auth_bearer_key
 
-        rest_opts.merge!( Authorization: "Bearer #{bearer_key}" )
+        rest_opts.merge!( headers: {Authorization: "Bearer #{bearer_key}"} )
       end
 
       @logger.debug("rest_opts: #{rest_opts}")
