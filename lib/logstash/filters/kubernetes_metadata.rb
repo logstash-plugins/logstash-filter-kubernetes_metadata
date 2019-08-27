@@ -304,6 +304,15 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
         bearer_key = @auth_bearer_key
 
         rest_opts.merge!( headers: {Authorization: "Bearer #{bearer_key}"} )
+      else
+        @logger.debug("Attempting to look up default service account token")
+        begin
+          bearer_key = File.read('/var/run/secrets/kubernetes.io/serviceaccount/token')
+
+          rest_opts.merge!( headers: {Authorization: "Bearer #{bearer_key}"} )
+        rescue => e
+          @logger.debug("Error reading default service account token: #{e}")
+        end
       end
 
       @logger.debug("rest_opts: #{rest_opts}")
