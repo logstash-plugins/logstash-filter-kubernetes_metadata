@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name          = 'logstash-filter-kubernetes_metadata'
-  s.version         = '1.0.5'
-  s.licenses      = ['Apache License (2.0)']
+  s.version         = '1.1.0'
+  s.licenses      = ['Apache-2.0']
   s.summary       = 'Parses kubernetes host and pod metadata from log filename'
   s.homepage      = 'https://github.com/phutchins/logstash-filter-kubernetes_metadata'
   s.authors       = ['Philip Hutchins']

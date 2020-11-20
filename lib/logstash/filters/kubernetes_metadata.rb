@@ -110,6 +110,9 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
   # Verify Kubernetes API SSL
   config :verify_api_ssl, :validate => :boolean, :default => true
 
+  # Used for bearer token auth key
+  config :token_path, :validate => :string, :default => "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
   # Default log format
   # This allows you to set a default log format or type for kubernetes logs if not set in the
   # kubernetes metadata annotations.
@@ -130,6 +133,9 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
     @logger.debug("Registering Kubernetes Filter plugin")
     self.lookup_cache ||= LruRedux::ThreadSafeCache.new(1000, 900)
     @logger.debug("Created cache...")
+    if(File.exist?(@token_path))
+      @auth_bearer_key = File.read(@token_path)
+    end
   end
 
   # this is optimized for the single container case. it caches based on filename to avoid the
@@ -286,6 +292,7 @@ class LogStash::Filters::KubernetesMetadata < LogStash::Filters::Base
       rest_opts = {
         verify_ssl: @verify_api_ssl
       }
+
 
       if @auth_basic_user && @auth_basic_pass
         if @auth_bearer_key
